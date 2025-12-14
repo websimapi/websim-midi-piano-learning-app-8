@@ -23,6 +23,10 @@ class App {
         const recordControls = document.getElementById('recording-controls');
         const addTrackBtn = document.getElementById('add-track-btn');
         const trackSelect = document.getElementById('record-track-select');
+        const undoBtn = document.getElementById('undo-btn');
+        const clearTrackBtn = document.getElementById('clear-track-btn');
+        const deleteTrackBtn = document.getElementById('delete-track-btn');
+        const renameTrackBtn = document.getElementById('rename-track-btn');
         
         delaySlider.addEventListener('input', () => {
             const newDelay = parseFloat(delaySlider.value);
@@ -133,11 +137,54 @@ class App {
                 this.updateTrackControls(trackInfo);
                 this.populateTrackSelect(trackInfo);
                 trackSelect.value = newIndex; // Auto-select new track
+                this.midiPlayer.recordingTrackIndex = newIndex;
             }
         });
 
         trackSelect.addEventListener('change', (e) => {
             this.midiPlayer.recordingTrackIndex = parseInt(e.target.value);
+        });
+
+        undoBtn.addEventListener('click', () => {
+            const trackInfo = this.midiPlayer.undo();
+            if (trackInfo) {
+                this.updateTrackControls(trackInfo);
+                this.populateTrackSelect(trackInfo);
+                trackSelect.value = this.midiPlayer.recordingTrackIndex;
+            }
+        });
+
+        clearTrackBtn.addEventListener('click', () => {
+            if (confirm('Clear all notes in the selected track?')) {
+                const trackInfo = this.midiPlayer.clearTrack();
+                if (trackInfo) {
+                    this.updateTrackControls(trackInfo);
+                }
+            }
+        });
+
+        deleteTrackBtn.addEventListener('click', () => {
+            if (confirm('Delete the selected track? This cannot be undone by this button (use Undo).')) {
+                const trackInfo = this.midiPlayer.deleteTrack();
+                if (trackInfo) {
+                    this.updateTrackControls(trackInfo);
+                    this.populateTrackSelect(trackInfo);
+                    trackSelect.value = this.midiPlayer.recordingTrackIndex;
+                }
+            }
+        });
+
+        renameTrackBtn.addEventListener('click', () => {
+            const currentName = trackSelect.options[trackSelect.selectedIndex]?.text || '';
+            const newName = prompt('Enter new name for track:', currentName);
+            if (newName && newName.trim() !== '') {
+                const trackInfo = this.midiPlayer.renameTrack(newName.trim());
+                if (trackInfo) {
+                    this.updateTrackControls(trackInfo);
+                    this.populateTrackSelect(trackInfo);
+                    trackSelect.value = this.midiPlayer.recordingTrackIndex;
+                }
+            }
         });
 
         this.setupTimelineListeners();

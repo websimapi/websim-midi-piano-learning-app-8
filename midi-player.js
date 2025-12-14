@@ -193,6 +193,9 @@ export class MidiPlayer {
             // Need to notify app about tracks, handled via callback/update in App
         }
 
+        // Save state before recording session
+        this.midiLoader.saveState();
+
         this.isRecording = true;
         this.pendingRecordedNotes.clear();
         
@@ -206,6 +209,9 @@ export class MidiPlayer {
         this.isRecording = false;
         this.pendingRecordedNotes.clear();
         this.stop();
+
+        // Update buffer with new notes
+        this.midiLoader.updateBuffer();
         
         // Reload midi data to visualize new notes
         // We do this by essentially resetting the player state with the current data
@@ -216,6 +222,73 @@ export class MidiPlayer {
         
         // Ensure track enabled for the recording track so we see the new notes
         this.activeTrackIndices.add(this.recordingTrackIndex);
+    }
+
+    undo() {
+        if (this.midiLoader.undo()) {
+            this.stop();
+            // Reset visuals
+            this.fallingNotesRenderer.reset();
+            this.activeNotesByFallingNote.clear();
+            
+            const trackInfo = this.midiLoader.getTrackInfo();
+            // Validate recordingTrackIndex
+            if (this.recordingTrackIndex >= trackInfo.length) {
+                this.recordingTrackIndex = Math.max(0, trackInfo.length - 1);
+            }
+
+            // Re-validate active tracks
+            const newActiveIndices = new Set();
+            this.activeTrackIndices.forEach(idx => {
+                if (idx < trackInfo.length) newActiveIndices.add(idx);
+            });
+            this.activeTrackIndices = newActiveIndices;
+            
+            this.scheduleInitialNotes();
+            return trackInfo;
+        }
+        return null;
+    }
+
+    clearTrack() {
+        if (this.midiLoader.clearTrack(this.recordingTrackIndex)) {
+            this.stop();
+            this.fallingNotesRenderer.reset();
+            this.activeNotesByFallingNote.clear();
+            this.scheduleInitialNotes();
+            return this.midiLoader.getTrackInfo();
+        }
+        return null;
+    }
+
+    deleteTrack() {
+        if (this.midiLoader.deleteTrack(this.recordingTrackIndex)) {
+            this.stop();
+            this.fallingNotesRenderer.reset();
+            this.activeNotesByFallingNote.clear();
+            
+            const trackInfo = this.midiLoader.getTrackInfo();
+            
+            // Reset selection to prevent out of bounds
+            if (this.recordingTrackIndex >= trackInfo.length) {
+                this.recordingTrackIndex = Math.max(0, trackInfo.length - 1);
+            }
+            
+            // Enable all tracks to be safe and visible
+            this.activeTrackIndices.clear();
+            trackInfo.forEach(t => this.activeTrackIndices.add(t.index));
+            
+            this.scheduleInitialNotes();
+            return trackInfo;
+        }
+        return null;
+    }
+
+    renameTrack(newName) {
+        if (this.midiLoader.renameTrack(this.recordingTrackIndex, newName)) {
+             return this.midiLoader.getTrackInfo();
+        }
+        return null;
     }
 
     handleUserNoteOn(note) {

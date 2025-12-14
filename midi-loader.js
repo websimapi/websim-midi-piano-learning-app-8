@@ -4,6 +4,25 @@ export class MidiLoader {
     constructor() {
         this.midiData = null;
         this.rawMidiBuffer = null;
+        this.history = [];
+    }
+
+    saveState() {
+        if (this.midiData) {
+            this.history.push(this.midiData.toArray());
+            // Limit history size to prevent memory issues
+            if (this.history.length > 20) {
+                this.history.shift();
+            }
+        }
+    }
+
+    undo() {
+        if (this.history.length === 0) return false;
+        const prevState = this.history.pop();
+        this.midiData = new Midi(prevState);
+        this.rawMidiBuffer = prevState;
+        return true;
     }
     
     async loadMidi(file, timeOffset = 5) {
@@ -29,8 +48,10 @@ export class MidiLoader {
 
     addNewTrack() {
         if (!this.midiData) return null;
+        this.saveState();
         const track = this.midiData.addTrack();
         track.name = `Layer ${this.midiData.tracks.length}`;
+        this.updateBuffer();
         return this.midiData.tracks.length - 1; // Return index
     }
 
@@ -44,11 +65,36 @@ export class MidiLoader {
             duration: noteData.duration,
             velocity: noteData.velocity || 0.8
         });
-        
-        // If we modify the MIDI, we should update the buffer eventually if we want to support delay shifting later
-        // But for now, just invalidating the buffer or updating it is enough.
-        // We'll update the raw buffer so that subsequent delay changes don't wipe our recording
-        this.rawMidiBuffer = this.midiData.toArray();
+    }
+
+    updateBuffer() {
+        if (this.midiData) {
+            this.rawMidiBuffer = this.midiData.toArray();
+        }
+    }
+
+    clearTrack(index) {
+        if (!this.midiData || !this.midiData.tracks[index]) return false;
+        this.saveState();
+        this.midiData.tracks[index].notes = [];
+        this.updateBuffer();
+        return true;
+    }
+
+    deleteTrack(index) {
+        if (!this.midiData || !this.midiData.tracks[index]) return false;
+        this.saveState();
+        this.midiData.tracks.splice(index, 1);
+        this.updateBuffer();
+        return true;
+    }
+
+    renameTrack(index, name) {
+        if (!this.midiData || !this.midiData.tracks[index]) return false;
+        this.saveState();
+        this.midiData.tracks[index].name = name;
+        this.updateBuffer();
+        return true;
     }
 
     applyTimeOffset(timeOffset) {

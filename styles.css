@@ -135,6 +135,7 @@ body {
     background: rgba(255, 255, 255, 0.1);
     padding: 4px 8px;
     border-radius: 8px;
+    flex-wrap: wrap;
 }
 
 .track-select {
@@ -149,8 +150,11 @@ body {
 
 .small-btn {
     padding: 4px 8px;
-    font-size: 12px;
-    min-width: auto;
+    font-size: 14px;
+    min-width: 28px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .timeline-wrapper {
